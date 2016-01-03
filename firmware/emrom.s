@@ -23,78 +23,60 @@
 
 	checksum = 0x00
 	counter = 0x01
-	status = 0x20
-	status_write_bit = 0x08 * (status - 0x20) + 0x07
-	ack = '!
 
 	.area text (CODE, ABS)
 
 	.org 0x0000
 
 power_on:
-
-	mov 0x8F, #0x01
 	mov PCON, #0x80
-	mov SCON, #0x90
-	setb TI
+	mov SCON, #0x52
+	mov TL1, #0xFF
+	mov TH1, #0xFF
+	mov TMOD, #0x20
+	mov TCON, #0x40
 
-frame_start:
+user_mode:
 
 	mov checksum, #0x00
 	mov counter, #0x00
 
-	acall getc
-	mov DPH, A
-	mov DPL, #0x00
-	add A, checksum
-	mov checksum, A
+	mov P0, #0xFF
+	mov P1, #0xFF
+	mov P2, #0xFF
+	mov P3, #0x9B
 
-	acall getc
-	mov status, A
-	add A, checksum
-	mov checksum, A
+	acall get_byte
+	mov P0, #0x00
+	mov P1, #0x00
+	mov P2, A
+	mov P3, #0xF7
 
-	jb status_write_bit, write_memory
+boot_mode:
 
-read_memory:
-
-	movx A, @DPTR
-	acall putc
-	add A, checksum
-	mov checksum, ACC
-	inc DPTR
-	djnz counter, read_memory
-
-	ajmp frame_stop
-
-write_memory:
-
-	acall getc
-	movx @DPTR, A
-	inc DPTR
-	add A, checksum
-	mov checksum, A
-	djnz counter, write_memory
-
-frame_stop:
-
-	mov A, #ack
-	acall putc
-	add A, checksum
-	mov checksum, A
+	acall get_byte
+	mov P0, A
+	clr P3.7
+	setb P3.7
+	inc P1
+	djnz counter, boot_mode
 
 	mov A, checksum
-	acall putc
-	ajmp frame_start
+	acall put_byte
+	ajmp user_mode
 
-getc:
-	jnb RI, getc
+get_byte:
+	jnb RI, get_byte
 	mov A, SBUF
+	xch A, checksum
+	add A, checksum
+	xch A, checksum
 	clr RI
 	ret
 
-putc:
-	jnb TI, putc
+put_byte:
+	jnb TI, put_byte
 	clr TI
 	mov SBUF, A
 	ret
+
