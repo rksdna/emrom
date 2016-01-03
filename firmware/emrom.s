@@ -29,6 +29,7 @@
 	.org 0x0000
 
 power_on:
+
 	mov PCON, #0x80
 	mov SCON, #0x52
 	mov TL1, #0xFF
@@ -55,7 +56,7 @@ user_mode:
 boot_mode:
 
 	acall get_byte
-	mov P0, A
+	mov P0, A	
 	clr P3.7
 	setb P3.7
 	inc P1
@@ -68,10 +69,10 @@ boot_mode:
 get_byte:
 	jnb RI, get_byte
 	mov A, SBUF
+	clr RI
 	xch A, checksum
 	add A, checksum
 	xch A, checksum
-	clr RI
 	ret
 
 put_byte:
