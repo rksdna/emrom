@@ -32,8 +32,8 @@ power_on:
 
 	mov PCON, #0x80
 	mov SCON, #0x52
-	mov TL1, #0xFF
-	mov TH1, #0xFF
+	mov TL1, #0xF3
+	mov TH1, #0xF3
 	mov TMOD, #0x20
 	mov TCON, #0x40
 
@@ -45,20 +45,21 @@ user_mode:
 	mov P0, #0xFF
 	mov P1, #0xFF
 	mov P2, #0xFF
-	mov P3, #0x9B
+;	mov P3, #0x9B
 
 	acall get_byte
-	mov P0, #0x00
+
+	mov P0, #0xFF
 	mov P1, #0x00
 	mov P2, A
-	mov P3, #0xF7
+;	mov P3, #0xF7
 
 boot_mode:
 
 	acall get_byte
 	mov P0, A	
-	clr P3.7
-	setb P3.7
+;	clr P3.7
+;	setb P3.7
 	inc P1
 	djnz counter, boot_mode
 

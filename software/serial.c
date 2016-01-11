@@ -123,15 +123,15 @@ int serial_open(const char* name)
         return SERIAL_IO_ERROR;
     if (tcgetattr(fd, &options) == -1)
         return SERIAL_IO_ERROR;
-    if ((cfsetispeed(&options, B115200) == -1) || (cfsetospeed(&options, B115200) == -1))
+    if ((cfsetispeed(&options, B4800) == -1) || (cfsetospeed(&options, B4800) == -1))
         return SERIAL_IO_ERROR;
     cfmakeraw(&options);
-    options.c_cflag = B115200 | PARENB | CS8 | CLOCAL | CREAD;
+    options.c_cflag = B4800 | CS8 | CLOCAL | CREAD | CSTOPB;
     options.c_iflag = IGNBRK | IGNPAR;
     options.c_oflag = 0;
     options.c_lflag = 0;
     options.c_cc[VMIN] = 0;
-    options.c_cc[VTIME] = 5;
+    options.c_cc[VTIME] = 10;
     tcflush(fd, TCIFLUSH);
     if (tcsetattr(fd, TCSANOW, &options) == -1)
         return SERIAL_IO_ERROR;

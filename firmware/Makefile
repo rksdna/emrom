@@ -27,7 +27,7 @@ HEX = $(SRC:.s=.ihx)
 
 # Targets list
 
-.PHONY: all clean update
+.PHONY: all clean install
 
 # Default target
 
@@ -40,6 +40,10 @@ $(HEX): $(OBJ)
 %.rel: %.s
 	@echo "Compiling $@..."
 	sdas8051 -o $<
+
+install: $(HEX)
+	@echo "Installing $@..."
+	x51-bsl -c /dev/ttyUSB0 -wc $< -d
 
 clean:
 	@echo "Clean..."

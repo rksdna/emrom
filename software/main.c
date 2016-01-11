@@ -38,6 +38,7 @@
 #endif
 
 #define MEMORY_SIZE 0x10000
+#define PAGE_SIZE 0x100
 
 enum
 {
@@ -57,12 +58,50 @@ static int read_handler(uint32_t address, uint8_t value)
     return 0;
 }
 
+static int emrom_checksum(int index)
+{
+    int result = index;
+    int count = PAGE_SIZE;
+    const uint8_t *p = memory + index * PAGE_SIZE;
+    while (count--)
+        result += *p++;
+    return result;
+}
+
+static int emrom_page(int index)
+{
+    int result = 0;
+    uint8_t ack;
+    if (result = serial_write(&index, 1))
+        return result;
+    if (result = serial_write(memory + index * PAGE_SIZE, PAGE_SIZE))
+        return result;
+    if (result = serial_read(&ack, 1))
+        return result;
+    if ((uint8_t)emrom_checksum(index) != ack)
+        return EMROM_WRITE_ERROR;
+    return 0;
+}
+
+static int dump_memory(void)
+{
+    serial_open("/dev/ttyUSB0");
+    serial_wait(10);
+    serial_clear();
+    printf(" DUMP %d", emrom_page(0));
+    serial_close();
+    return 0;
+
+}
+
 static int load(char *argv[])
 {
     int result;
     printf("Loading from %s...", argv[0]);
     if (result = parser_read(argv[0], read_handler))
         return result;
+
+    dump_memory();
 
     /*while (address <= stm32_end_address)
     {
