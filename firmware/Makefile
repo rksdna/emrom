@@ -1,5 +1,6 @@
-# Emrom firmware
-# Copyright (c) 2016 Andrey Skrypka
+#
+# Emrom - ROM emulator firmware
+# Copyright (c) 2016 rksdna
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +22,12 @@
 
 # Project files
 
-SRC = emrom.s
-OBJ = $(SRC:.s=.rel)
-HEX = $(SRC:.s=.ihx)
+TARGET = emrom
+SRC = $(TARGET).asm
+LST = $(TARGET).lst
+HEX = $(TARGET).hex
+
+PORT = /dev/parport0
 
 # Targets list
 
@@ -33,18 +37,15 @@ HEX = $(SRC:.s=.ihx)
 
 all: $(HEX)
 
-$(HEX): $(OBJ)
+$(HEX): $(SRC)
 	@echo "Linkning $@..."
-	sdld -i $^
-
-%.rel: %.s
-	@echo "Compiling $@..."
-	sdas8051 -o $<
+	as31 -l -O$@ $^
 
 install: $(HEX)
-	@echo "Installing $@..."
-	x51-bsl -c /dev/ttyUSB0 -wc $< -d
+	@echo "Installing $@..."	
+	at89-isp -a direct -t at89s51 -c $(PORT) -e -w $@ -d
 
 clean:
 	@echo "Clean..."
-	rm -f $(OBJ) $(HEX)		
+	rm -f $(HEX) $(LST)
+	
