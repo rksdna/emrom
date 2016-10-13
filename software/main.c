@@ -28,6 +28,7 @@
 #include "options.h"
 #include "serial.h"
 #include "buffer.h"
+#include "error.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #define PLATFORM "WINDOWS"
