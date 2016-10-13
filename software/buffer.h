@@ -1,6 +1,6 @@
 /*
- * Emrom Loader
- * Copyright (c) 2016 Andrey Skrypka
+ * Emrom - ROM emulator software
+ * Copyright (c) 2016 rksdna
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,24 +21,22 @@
  * THE SOFTWARE.
  */
 
-#ifndef PARSER_HEADER
-#define PARSER_HEADER
+#ifndef BUFFER_H
+#define BUFFER_H
 
 #include <stdint.h>
+#include <stddef.h>
 
-typedef int (*read_handler_t)(uint32_t address, uint8_t value);
-typedef int (*write_handler_t)(uint32_t address, uint8_t *value);
-
-enum
+struct buffer
 {
-    PARSER_FILE_ERROR = -20,
-    PARSER_IO_ERROR = -21,
-    PARSER_CHECKSUM_ERROR = -22,
-    PARSER_RECORD_ERROR = -23,
-    PARSER_MEMORY_ERROR = -24
+    uint32_t startup;
+    uint32_t origin;
+    size_t size;
+    void *data;
 };
 
-int parser_read(const char *name, read_handler_t handler);
-int parser_write(const char* name, write_handler_t handler, uint32_t address, uint32_t size, int width);
+int load_file_buffer(struct buffer *buffer, const char *file);
+int save_file_buffer(struct buffer *buffer, const char *file);
+void clear_buffer(struct buffer *buffer, uint8_t value);
 
 #endif

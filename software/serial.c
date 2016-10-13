@@ -1,6 +1,6 @@
 /*
- * Emrom Loader
- * Copyright (c) 2016 Andrey Skrypka
+ * Emrom - ROM emulator software
+ * Copyright (c) 2016 rksdna
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,182 +21,154 @@
  * THE SOFTWARE.
  */
 
+#include <time.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include "errors.h"
 #include "serial.h"
 
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
+static int fd = -1;
+static struct termios shadow_options;
+static struct termios active_options;
+static int shadow_status;
+static int active_status;
 
-HANDLE port = INVALID_HANDLE_VALUE;
-
-int serial_open(const char* name)
+int open_serial_port(const char *file)
 {
-    DCB dcb =
-    {
-        sizeof(DCB), CBR_115200, TRUE, FALSE, FALSE, FALSE,
-        DTR_CONTROL_DISABLE, FALSE,  FALSE, FALSE, FALSE,
-        FALSE, FALSE, RTS_CONTROL_DISABLE, FALSE, 0, 0,
-        2048, 512, 8, EVENPARITY, ONESTOPBIT, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0
-    };
-    COMMTIMEOUTS timeouts =
-    {
-        0, 0, 250, 0, 250
-    };
-    serial_close();
-    port = CreateFile(name, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-    if (port == INVALID_HANDLE_VALUE)
-        return SERIAL_FILE_ERROR;
-    SetCommState(port, &dcb);
-    SetCommTimeouts(port, &timeouts);
-    return 0;
+    if (fd >= 0)
+        return SERIAL_PORT_ALREADY_OPEN;
+
+    if ((fd = open(file, O_RDWR | O_NOCTTY)) < 0)
+        return INTERNAL_ERROR;
+
+    if (tcgetattr(fd, &shadow_options) < 0)
+        return INTERNAL_ERROR;
+
+    active_options = shadow_options;
+
+    if (ioctl(fd, TIOCMGET, &shadow_options) < 0)
+        return INTERNAL_ERROR;
+
+    active_status = shadow_status;
+
+    active_options.c_cflag = B115200 | PARENB | CS8 | CLOCAL | CREAD;
+    active_options.c_iflag = IGNBRK | IGNPAR;
+    active_options.c_oflag = 0;
+    active_options.c_lflag = 0;
+    active_options.c_cc[VMIN] = 0;
+    active_options.c_cc[VTIME] = 5;
+
+    if (tcflush(fd, TCIFLUSH) < 0)
+        return INTERNAL_ERROR;
+
+    if (tcsetattr(fd, TCSANOW, &active_options) < 0)
+        return INTERNAL_ERROR;
+
+    return DONE;
 }
 
-void serial_close()
+int close_serial_port(void)
 {
-    if (port != INVALID_HANDLE_VALUE)
+    if (ioctl(fd, TIOCMSET, &shadow_status) < 0)
+        return INTERNAL_ERROR;
+
+    if (tcsetattr(fd, TCSANOW, &shadow_options) < 0)
+        return INTERNAL_ERROR;
+
+    if (close(fd) < 0)
+        return INTERNAL_ERROR;
+
+    fd = -1;
+    return DONE;
+}
+
+int write_serial_port(const void *data, size_t size)
+{
+    while (size)
     {
-        CloseHandle(port);
-        port = INVALID_HANDLE_VALUE;
+        ssize_t count = write(fd, data, size);
+
+        if (count < 0)
+        {
+            if (errno == EINTR)
+                continue;
+
+            return INTERNAL_ERROR;
+        }
+
+        data += count;
+        size -= count;
     }
+
+    return DONE;
 }
 
-int serial_control(int rts, int dtr)
+int read_serial_port(void *data, size_t size)
 {
-    if (!EscapeCommFunction(port, rts ? SETRTS : CLRRTS))
-        return SERIAL_IO_ERROR;
-    if (!EscapeCommFunction(port, dtr ? SETDTR : CLRDTR))
-        return SERIAL_IO_ERROR;
-    return 0;
-}
-
-int serial_clear()
-{
-    if (!PurgeComm(port, PURGE_TXCLEAR | PURGE_RXCLEAR))
-        return SERIAL_IO_ERROR;
-    return 0;
-}
-
-int serial_write(const void* buffer, int size)
-{
-    DWORD count;
-    if (!WriteFile(port, buffer, size, &count, NULL))
-        return SERIAL_IO_ERROR;
-    if (count != size)
-        return SERIAL_IO_ERROR;
-    return 0;
-}
-
-int serial_read(void* buffer, int size)
-{
-    DWORD count;
-    if (!ReadFile(port, buffer, size, &count, NULL))
-        return SERIAL_IO_ERROR;
-    if (count != size)
-        return SERIAL_IO_ERROR;
-    return 0;
-}
-
-void serial_wait(int ms)
-{
-    DWORD begin = GetTickCount();
-    while (GetTickCount() - begin < ms)
-        continue;
-}
-
-#elif defined(__linux__)
-
-#include <termios.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-
-int fd = -1;
-
-int serial_open(const char* name)
-{
-    struct termios options;
-    serial_close();
-    fd = open(name, O_RDWR | O_NOCTTY | O_NDELAY);
-    if (fd == -1)
-        return SERIAL_FILE_ERROR;
-    if (fcntl(fd, F_SETFL, 0) == -1)
-        return SERIAL_IO_ERROR;
-    if (tcgetattr(fd, &options) == -1)
-        return SERIAL_IO_ERROR;
-    if ((cfsetispeed(&options, B4800) == -1) || (cfsetospeed(&options, B4800) == -1))
-        return SERIAL_IO_ERROR;
-    cfmakeraw(&options);
-    options.c_cflag = B4800 | CS8 | CLOCAL | CREAD | CSTOPB;
-    options.c_iflag = IGNBRK | IGNPAR;
-    options.c_oflag = 0;
-    options.c_lflag = 0;
-    options.c_cc[VMIN] = 0;
-    options.c_cc[VTIME] = 10;
-    tcflush(fd, TCIFLUSH);
-    if (tcsetattr(fd, TCSANOW, &options) == -1)
-        return SERIAL_IO_ERROR;
-    return 0;
-}
-
-void serial_close()
-{
-    if (fd != -1)
+    while (size)
     {
-        close(fd);
-        fd = -1;
+        ssize_t count = read(fd, data, size);
+
+        if (count < 0)
+        {
+            if (errno == EINTR)
+                continue;
+
+            return INTERNAL_ERROR;
+        }
+
+        if (count == 0)
+            return NO_DEVICE_REPLY;
+
+        data += count;
+        size -= count;
     }
+
+    return DONE;
 }
 
-int serial_control(int rts, int dtr)
+int flush_serial_port(void)
 {
-    int status;
-    if (ioctl(fd, TIOCMGET, &status) == -1)
-        return SERIAL_IO_ERROR;
-    status &= ~(TIOCM_RTS | TIOCM_DTR);
+    if (tcflush(fd, TCIOFLUSH) < 0)
+        return INTERNAL_ERROR;
+
+    return DONE;
+}
+
+int control_serial_port(int rts, int dtr)
+{
+    active_status &= ~(TIOCM_RTS | TIOCM_DTR);
+
     if (rts)
-        status |= TIOCM_RTS;
+        active_status |= TIOCM_RTS;
+
     if (dtr)
-        status |= TIOCM_DTR;
-    if (ioctl(fd, TIOCMSET, &status) == -1)
-        return SERIAL_IO_ERROR;
-    return 0;
+        active_status |= TIOCM_DTR;
+
+    if (ioctl(fd, TIOCMSET, &active_status) < 0)
+        return INTERNAL_ERROR;
+
+    return DONE;
 }
 
-int serial_clear()
+int wait_serial_port(int ms)
 {
-    if (tcflush(fd, TCIOFLUSH))
-        return SERIAL_IO_ERROR;
-    return 0;
-}
+    int result;
+    struct timespec time;
 
-int serial_write(const void* buffer, int size)
-{
-    int count = write(fd, buffer, size);
-    if (count != size)
-        return SERIAL_IO_ERROR;
-    return 0;
-}
+    time.tv_sec = ms / 1000;
+    time.tv_nsec = 1000000 * (ms % 1000);
 
-int serial_read(void* buffer, int size)
-{
-    int n = 0, count;
-    while (n < size)
+    while ((result = nanosleep(&time , &time)))
     {
-        count = read(fd, buffer, size - n);
-        if (count <= 0)
-            return SERIAL_IO_ERROR;
-        n += count;
-        buffer += count;
+        if (errno == EINTR)
+            continue;
+
+        return INTERNAL_ERROR;
     }
-    return 0;
+
+    return DONE;
 }
-
-void serial_wait(int ms)
-{
-    usleep(1000 * ms);
-}
-
-#else
-#error "Unsupported architecture"
-#endif
-

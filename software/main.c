@@ -1,6 +1,6 @@
 /*
- * Emrom Loader
- * Copyright (c) 2016 Andrey Skrypka
+ * Emrom - ROM emulator software
+ * Copyright (c) 2016 rksdna
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@
 #include <time.h>
 #include "options.h"
 #include "serial.h"
-#include "parser.h"
+#include "buffer.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #define PLATFORM "WINDOWS"
@@ -155,8 +155,42 @@ static const result_t results[] =
 
 int main(int argc, char* argv[])
 {
-    printf("\nEmrom Loader Version 1.00 %s\n", PLATFORM);
-    printf("Copyright (c) 2016 Andrey Skrypka\n");
-    return options_execute(options, argc, argv);
+    static const struct option options[] =
+        {
+            {JOINT_OPTION, 0, "rts", "Select RTS mode: reset - for device RESET, nreset - for inverted device RESET, boot - for device BOOT0 (default), nboot - for inverted device BOOT0, set - stay at high level, clear - stay at low level", select_rts_mode},
+            {JOINT_OPTION, 0, "dtr", "Select DTR mode: reset - for device RESET (default), nreset - for inverted device RESET, boot - for device BOOT0, nboot - for inverted device BOOT0, set - stay at high level, clear - stay at low level", select_dtr_mode},
+            {JOINT_OPTION, "c", "connect", "Open serial port and connect to device bootloader", connect_device},
+            {PLAIN_OPTION, "u", "unprotect", "Erase and read-out unprotect device memory", unprotect_device},
+            {JOINT_OPTION, "r", "read", "Read data from device memory to file", read_device},
+            {PLAIN_OPTION, "e", "erase", "Erase device memory", erase_device},
+            {JOINT_OPTION, "w", "write", "Write data from file to device memory", write_device},
+            {PLAIN_OPTION, "p", "protect", "Read-out protect device memory", protect_device},
+            {JOINT_OPTION, 0, "trace-time", "Set trace intercharacter interval in seconds (5 default)", set_trace_time},
+            {JOINT_OPTION, 0, "trace-size", "Set maximum trace log size (4096 default)", set_trace_size},
+            {PLAIN_OPTION, "t", "trace", "Restart device in user mode, with redirecting device output to stdout", trace_device},
+            {PLAIN_OPTION, "d", "disconnect", "Disconnect device and close serial port", disconnect_device},
+            {USAGE_OPTION, "h", "help", "Print this help", usage_options},
+            {OTHER_OPTION}
+        };
+
+        static const struct error errors[] =
+        {
+            {INVALID_FILE_CHECKSUM, "Invalid checksum of file"},
+            {INVALID_FILE_CONTENT, "Invalid device memory location or invalid record in file"},
+            {UNSUPPORTED_DEVICE, "Unsupported device"},
+            {INVALID_DEVICE_REPLY, "Invalid reply from device bootloader"},
+            {NO_DEVICE_REPLY, "No reply from device bootloader"},
+            {SERIAL_PORT_ALREADY_OPEN, "Serial port already open"},
+            {INTERNAL_ERROR, "Internal error"},
+            {INVALID_OPTIONS_ARGUMENT, "Invalid actual parameter"},
+            {INVALID_OPTION, "Invalid option"},
+            {DONE, "No errors, all done"},
+        };
+
+        static char stdout_buffer[256];
+        setvbuf(stdout, stdout_buffer, _IOLBF, sizeof(stdout_buffer));
+        fprintf(stdout, TTY_NONE "Swamp-boot, version 0.%d\n", VERSION);
+
+        return invoke_options(TTY_BOLD "swamp-boot" TTY_NONE " [" TTY_UNLN "OPTIONS" TTY_NONE "] ", options, errors, argc, argv);
 }
 

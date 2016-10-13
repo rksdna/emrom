@@ -1,6 +1,6 @@
 /*
- * Emrom - ROM emulator software
- * Copyright (c) 2016 rksdna
+ * Swamp-boot - flash memory programming for the STM32 microcontrollers
+ * Copyright (c) 2016 rksdna, fasked
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,48 +21,21 @@
  * THE SOFTWARE.
  */
 
-#ifndef OPTIONS_H
-#define OPTIONS_H
+#ifndef ERRORS_H
+#define ERRORS_H
 
-#ifdef NO_TTY
-#define TTY_BOLD
-#define TTY_UNLN
-#define TTY_NONE
-#else
-#define TTY_BOLD "\e[1m"
-#define TTY_UNLN "\e[4m"
-#define TTY_NONE "\e[0m"
-#endif
-
-enum role
+enum
 {
-    PLAIN_OPTION,
-    JOINT_OPTION,
-    USAGE_OPTION,
-    OTHER_OPTION
+    DONE = 0,
+    INVALID_OPTION,
+    INVALID_OPTIONS_ARGUMENT,
+    INTERNAL_ERROR,
+    SERIAL_PORT_ALREADY_OPEN,
+    NO_DEVICE_REPLY,
+    INVALID_DEVICE_REPLY,
+    UNSUPPORTED_DEVICE,
+    INVALID_FILE_CONTENT,
+    INVALID_FILE_CHECKSUM
 };
-
-struct option
-{
-    enum role role;
-    const char *short_name;
-    const char *long_name;
-    const char *usage;
-    const void *handler;
-};
-
-struct error
-{
-    int result;
-    const char *usage;
-};
-
-typedef int (* plain_handler_t)(void);
-typedef int (* joint_handler_t)(const char *argument);
-typedef int (* usage_handler_t)(const char *synopsis, const struct option options[], const struct error errors[]);
-typedef int (* other_handler_t)(const char *operand);
-
-int invoke_options(const char *synopsis, const struct option options[], const struct error errors[], int argc, char *argv[]);
-int usage_options(const char *synopsis, const struct option options[], const struct error errors[]);
 
 #endif

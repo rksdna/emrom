@@ -1,6 +1,6 @@
 /*
- * Emrom Loader
- * Copyright (c) 2016 Andrey Skrypka
+ * Emrom - ROM emulator software
+ * Copyright (c) 2016 rksdna
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,21 +21,19 @@
  * THE SOFTWARE.
  */
 
-#ifndef SERIAL_HEADER
-#define SERIAL_HEADER
+#ifndef SERIAL_H
+#define SERIAL_H
 
-enum
-{
-    SERIAL_FILE_ERROR = -10,
-    SERIAL_IO_ERROR = -11
-};
+#include <stddef.h>
 
-int serial_open(const char* name);
-void serial_close();
-int serial_control(int rts, int dtr);
-int serial_clear();
-int serial_write(const void* buffer, int size);
-int serial_read(void* buffer, int size);
-void serial_wait(int ms);
+int open_serial_port(const char *file);
+int close_serial_port(void);
+
+int write_serial_port(const void *data, size_t size);
+int read_serial_port(void *data, size_t size);
+int flush_serial_port(void);
+
+int control_serial_port(int rts, int dtr);
+int wait_serial_port(int ms);
 
 #endif

@@ -1,7 +1,8 @@
 options.h
 options.c
+buffer.h
+buffer.c
 serial.c
 serial.h
-parser.c
-parser.h
+errors.h
 main.c
