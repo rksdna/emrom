@@ -54,7 +54,7 @@ int open_serial_port(const char *file)
 
     active_status = shadow_status;
 
-    active_options.c_cflag = B115200 | PARENB | CS8 | CLOCAL | CREAD;
+    active_options.c_cflag = B57600 | CS8 | CLOCAL | CREAD;
     active_options.c_iflag = IGNBRK | IGNPAR;
     active_options.c_oflag = 0;
     active_options.c_lflag = 0;

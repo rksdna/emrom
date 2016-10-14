@@ -43,7 +43,7 @@ $(HEX): $(SRC)
 
 install: $(HEX)
 	@echo "Installing $@..."	
-	at89-isp -a direct -t at89s51 -c $(PORT) -e -w $@ -d
+	at89s-isp -a direct -t at89s51 -c $(PORT) -e -w $^ -d
 
 clean:
 	@echo "Clean..."

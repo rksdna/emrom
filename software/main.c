@@ -22,9 +22,6 @@
  */
 
 #include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
 #include "options.h"
 #include "serial.h"
 #include "buffer.h"
@@ -39,6 +36,7 @@
 #define FRAME_TAIL_SIZE (1)
 
 static uint8_t memory[MEMORY_SIZE];
+static char frame[FRAME_HEAD_SIZE + FRAME_DATA_SIZE + FRAME_TAIL_SIZE];
 
 static int connect_device(const char *file)
 {
@@ -60,30 +58,29 @@ static int read_device_memory(const struct buffer *buffer)
 
     while (size)
     {
-        int i;
         int result;
-        char frame[FRAME_HEAD_SIZE + FRAME_DATA_SIZE + FRAME_TAIL_SIZE + 1];
-        char *ptr = frame;
+        int count = PAGE_SIZE;
+        char *p = frame;
 
-        ptr += sprintf(ptr, ":%.2X%.2X", address & 0xFF, (address >> 8) & 0xFF);
-        ptr += sprintf(ptr, "\n");
-        *ptr = 0;
+        p += sprintf(p, ":%.2X%.2X", address & 0xFF, (address >> 8) & 0xFF);
+        address += PAGE_SIZE;
 
-        printf("%s", frame);
+        sprintf(p, "\n");
 
-       /* if ((result = write_serial_port(frame, FRAME_HEAD_SIZE + FRAME_TAIL_SIZE)))
+        if ((result = write_serial_port(frame, FRAME_HEAD_SIZE + FRAME_TAIL_SIZE)))
             return result;
 
         if ((result = read_serial_port(frame, FRAME_HEAD_SIZE + FRAME_DATA_SIZE + FRAME_TAIL_SIZE)))
-            return result;*/
+            return result;
 
-        ptr = frame + 1 + 2 + 2;
-        for (i = 0; i < PAGE_SIZE; i++)
-            ptr += sscanf(ptr, "%.2X", data[i]);
+        while (count--)
+        {
+            sscanf(p, "%2hhX", data++);
+            p += 2;
+        }
 
         size -= PAGE_SIZE;
-        data += PAGE_SIZE;
-        address += PAGE_SIZE;
+        fprintf(stdout, ".");
     }
 
     return DONE;
@@ -116,37 +113,41 @@ static int write_device_memory(const struct buffer *buffer)
 
     while (size)
     {
-        int i;
         int result;
-        char frame[FRAME_HEAD_SIZE + FRAME_DATA_SIZE + FRAME_TAIL_SIZE + 1];
-        char *ptr = frame;
+        int count = PAGE_SIZE;
+        char *p = frame;
 
-        ptr += sprintf(ptr, ":%.2X%.2X", address & 0xFF, (address >> 8) & 0xFF);
-        for (i = 0; i < PAGE_SIZE; i++)
-            ptr += sprintf(ptr, "%.2X", data[i]);
-        ptr += sprintf(ptr, "\n");
+        p += sprintf(p, ":%.2X%.2X", address & 0xFF, (address >> 8) & 0xFF);
+        address += PAGE_SIZE;
 
-        *ptr = 0;
+        while (count--)
+            p += sprintf(p, "%.2X", *data++);
 
-        printf("%s", frame);
+        sprintf(p, "\n");
 
-       /* if ((result = write_serial_port(frame, FRAME_HEAD_SIZE + FRAME_DATA_SIZE + FRAME_TAIL_SIZE)))
+        if ((result = write_serial_port(frame, FRAME_HEAD_SIZE + FRAME_DATA_SIZE + FRAME_TAIL_SIZE)))
             return result;
 
         if ((result = read_serial_port(frame, FRAME_HEAD_SIZE + FRAME_TAIL_SIZE)))
-            return result;*/
+            return result;
 
         size -= PAGE_SIZE;
-        data += PAGE_SIZE;
-        address += PAGE_SIZE;
+        fprintf(stdout, ".");
     }
 
     return DONE;
 }
 
+static uint32_t arrange(uint32_t value)
+{
+    return (value / PAGE_SIZE) * PAGE_SIZE;
+}
+
 static int write_device(const char *file)
 {
     int result;
+    uint32_t begin;
+    uint32_t end;
     struct buffer buffer =
     {
         0, 0, MEMORY_SIZE, memory
@@ -157,13 +158,34 @@ static int write_device(const char *file)
     if ((result = load_file_buffer(&buffer, file)))
         return result;
 
-    buffer.origin = 0;
-    buffer.size = MEMORY_SIZE;
+    begin = arrange(buffer.origin);
+    end = arrange(buffer.origin + buffer.size + PAGE_SIZE - 1);
+
+    buffer.origin = begin;
+    buffer.size = end - begin;
 
     if ((result = write_device_memory(&buffer)))
         return result;
 
-    return result;
+    return DONE;
+}
+
+static int erase_device(const char *data)
+{
+    int result;
+    struct buffer buffer =
+    {
+        0, 0, MEMORY_SIZE, memory
+    };
+
+    fprintf(stdout, TTY_NONE "Erasing...");
+
+    clear_buffer(&buffer, 0xFF);
+
+    if ((result = write_device_memory(&buffer)))
+        return result;
+
+    return DONE;
 }
 
 static int disconnect_device(void)
@@ -185,6 +207,7 @@ int main(int argc, char* argv[])
         {JOINT_OPTION, "c", "connect", "Open serial port and connect to device", connect_device},
         {JOINT_OPTION, "r", "read", "Read data from device memory to file", read_device},
         {JOINT_OPTION, "w", "write", "Write data from file to device memory", write_device},
+        {PLAIN_OPTION, "e", "erase", "Erase device memory", erase_device},
         {PLAIN_OPTION, "d", "disconnect", "Disconnect device and close serial port", disconnect_device},
         {USAGE_OPTION, "h", "help", "Print this help", usage_options},
         {OTHER_OPTION}
