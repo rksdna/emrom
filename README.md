@@ -2,7 +2,7 @@
 
 Simple 8 bit 64 Kbyte ROM emulator for controllers with external memory.
 
-![Image](https://github.com/rksdna/emrom/hardware/board.png)
+![Image](/hardware/board.png)
 
 Building loader:
 ```
