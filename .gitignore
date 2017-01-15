@@ -1,0 +1,6 @@
+*.o
+*.d
+*.lst
+*.map
+*.hex
+emrom
