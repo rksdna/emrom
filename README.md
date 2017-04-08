@@ -1,4 +1,4 @@
-#Emrom
+# Emrom
 
 Simple 8 bit wide 64 Kbyte ROM emulator for controllers with external memory.
 
