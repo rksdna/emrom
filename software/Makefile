@@ -39,8 +39,6 @@ RM = rm -f
 CFLAGS = -Wall -Wno-parentheses -Os -MD
 LFLAGS =
 
--include $(DEP)
-
 # Targets
 
 .PHONY: all clean install
@@ -63,3 +61,4 @@ clean:
 	@echo "Cleaning..."
 	$(RM) $(OBJ) $(DEP) $(BIN)
 
+-include $(DEP)
